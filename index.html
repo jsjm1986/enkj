@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI试卷识别系统</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="ai-decoration"></div>
+    <div class="container">
+        <h1 class="neon-glow">
+            <span class="tech-corner top-left"></span>
+            <span class="tech-corner top-right"></span>
+            AI试卷识别系统
+            <span class="tech-corner bottom-left"></span>
+            <span class="tech-corner bottom-right"></span>
+        </h1>
+        <div class="upload-section">
+            <div class="upload-methods">
+                <div class="upload-box glassmorphism" id="uploadBox">
+                    <div class="scan-line"></div>
+                    <input type="file" id="fileInput" accept="image/*,application/pdf" multiple>
+                    <label for="fileInput">
+                        <div class="upload-content">
+                            <img src="images/upload-icon.svg" alt="上传图标" id="previewImage">
+                            <p>点击上传图片或PDF文件</p>
+                        </div>
+                    </label>
+                </div>
+                <div class="camera-box glassmorphism" id="cameraBox">
+                    <div class="scan-line"></div>
+                    <div class="camera-content">
+                        <img src="images/camera-icon.svg" alt="相机图标">
+                        <p>点击启动相机</p>
+                    </div>
+                </div>
+            </div>
+            <div class="preview-section" id="previewSection">
+                <!-- 预览区域 -->
+            </div>
+        </div>
+        <div class="result-section glassmorphism" id="resultSection">
+            <div class="result-header">
+                <h2 class="neon-glow">
+                    <span class="tech-corner top-left"></span>
+                    识别结果
+                    <span class="tech-corner top-right"></span>
+                </h2>
+                <div class="export-buttons">
+                    <button id="exportJson" class="export-btn">导出JSON</button>
+                    <button id="exportExcel" class="export-btn">导出Excel</button>
+                    <button id="clearData" class="export-btn danger">清除数据</button>
+                </div>
+            </div>
+            <div class="questions-container" id="questionsContainer">
+                <!-- 识别后的题目将在这里显示 -->
+            </div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="js/matrix.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html> 
