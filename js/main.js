@@ -42,41 +42,47 @@ async function handleCameraCapture() {
     const cameraBox = document.getElementById('cameraBox');
     
     if (!cameraActive) {
-        // 添加active类
-        cameraBox.classList.add('active');
-        
-        // 隐藏原始内容
-        const cameraContent = cameraBox.querySelector('.camera-content');
-        if (cameraContent) {
-            cameraContent.style.display = 'none';
-        }
-        
-        // 创建视频预览元素
-        videoElement = document.createElement('video');
-        videoElement.style.width = '100%';
-        videoElement.style.height = '100%';
-        videoElement.style.objectFit = 'cover';
-        videoElement.style.transform = 'scaleX(-1)'; // 镜像显示
-        videoElement.autoplay = true;
-        videoElement.playsinline = true; // 对iOS很重要
-        
-        // 创建拍照按钮
-        const captureBtn = document.createElement('button');
-        captureBtn.className = 'capture-btn';
-        captureBtn.innerHTML = '拍照';
-        captureBtn.onclick = captureImage;
-        
-        // 创建切换摄像头按钮（如果设备支持）
-        const switchBtn = document.createElement('button');
-        switchBtn.className = 'switch-camera-btn';
-        switchBtn.innerHTML = '切换摄像头';
-        switchBtn.onclick = switchCamera;
-        
-        // 添加元素到容器
-        cameraBox.appendChild(videoElement);
-        cameraBox.appendChild(captureBtn);
-        
         try {
+            // 添加active类
+            cameraBox.classList.add('active');
+            
+            // 隐藏原始内容
+            const cameraContent = cameraBox.querySelector('.camera-content');
+            if (cameraContent) {
+                cameraContent.style.display = 'none';
+            }
+            
+            // 创建视频预览元素
+            videoElement = document.createElement('video');
+            videoElement.style.width = '100%';
+            videoElement.style.height = '100%';
+            videoElement.style.objectFit = 'cover';
+            videoElement.style.transform = 'scaleX(-1)'; // 镜像显示
+            videoElement.autoplay = true;
+            videoElement.playsinline = true; // 对iOS很重要
+            
+            // 创建拍照按钮
+            const captureBtn = document.createElement('button');
+            captureBtn.className = 'capture-btn';
+            captureBtn.innerHTML = '拍照';
+            captureBtn.onclick = (e) => {
+                e.stopPropagation(); // 阻止事件冒泡
+                captureImage();
+            };
+            
+            // 创建切换摄像头按钮（如果设备支持）
+            const switchBtn = document.createElement('button');
+            switchBtn.className = 'switch-camera-btn';
+            switchBtn.innerHTML = '切换摄像头';
+            switchBtn.onclick = (e) => {
+                e.stopPropagation(); // 阻止事件冒泡
+                switchCamera();
+            };
+            
+            // 添加元素到容器
+            cameraBox.appendChild(videoElement);
+            cameraBox.appendChild(captureBtn);
+            
             // 检查是否支持多个摄像头
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
@@ -84,23 +90,27 @@ async function handleCameraCapture() {
                 cameraBox.appendChild(switchBtn);
             }
             
-            // 请求摄像头权限
+            // 请求摄像头权限，优先使用后置摄像头
             stream = await navigator.mediaDevices.getUserMedia({
                 video: {
-                    facingMode: 'environment', // 默认使用后置摄像头
+                    facingMode: { ideal: 'environment' },
                     width: { ideal: 1920 },
                     height: { ideal: 1080 }
                 }
             });
             
             videoElement.srcObject = stream;
+            await videoElement.play(); // 确保视频开始播放
             cameraActive = true;
             
             // 添加关闭按钮
             const closeBtn = document.createElement('button');
             closeBtn.className = 'close-camera-btn';
             closeBtn.innerHTML = '×';
-            closeBtn.onclick = stopCamera;
+            closeBtn.onclick = (e) => {
+                e.stopPropagation(); // 阻止事件冒泡
+                stopCamera();
+            };
             cameraBox.appendChild(closeBtn);
             
         } catch (error) {
@@ -112,52 +122,96 @@ async function handleCameraCapture() {
 }
 
 // 拍照功能
-function captureImage() {
+async function captureImage() {
     if (!videoElement || !cameraActive) return;
     
-    const canvas = document.createElement('canvas');
-    canvas.width = videoElement.videoWidth;
-    canvas.height = videoElement.videoHeight;
-    
-    const ctx = canvas.getContext('2d');
-    // 如果视频是镜像的，需要翻转回来
-    ctx.scale(-1, 1);
-    ctx.translate(-canvas.width, 0);
-    ctx.drawImage(videoElement, 0, 0);
-    
-    const imageData = canvas.toDataURL('image/jpeg', 0.8);
-    addPreviewImage(imageData, `拍照_${new Date().toLocaleTimeString()}.jpg`);
-    processImage(imageData);
-    
-    // 拍照后关闭摄像头
-    stopCamera();
+    try {
+        showProgress(ProcessSteps.PROCESSING, 10);
+        
+        const canvas = document.createElement('canvas');
+        // 使用视频的实际分辨率
+        canvas.width = videoElement.videoWidth;
+        canvas.height = videoElement.videoHeight;
+        
+        const ctx = canvas.getContext('2d');
+        // 如果视频是镜像的，需要翻转回来
+        ctx.scale(-1, 1);
+        ctx.translate(-canvas.width, 0);
+        ctx.drawImage(videoElement, 0, 0);
+        
+        showProgress(ProcessSteps.COMPRESSING, 20);
+        
+        // 压缩图片
+        let imageData;
+        if (canvas.width > 1024 || canvas.height > 1024) {
+            const maxDimension = 1024;
+            const scaledCanvas = document.createElement('canvas');
+            let width = canvas.width;
+            let height = canvas.height;
+            
+            if (width > height) {
+                height = Math.round(height * maxDimension / width);
+                width = maxDimension;
+            } else {
+                width = Math.round(width * maxDimension / height);
+                height = maxDimension;
+            }
+            
+            scaledCanvas.width = width;
+            scaledCanvas.height = height;
+            const scaledCtx = scaledCanvas.getContext('2d');
+            scaledCtx.drawImage(canvas, 0, 0, width, height);
+            imageData = scaledCanvas.toDataURL('image/jpeg', 0.7);
+        } else {
+            imageData = canvas.toDataURL('image/jpeg', 0.8);
+        }
+        
+        // 生成文件名
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const fileName = `拍照_${timestamp}.jpg`;
+        
+        // 添加到预览
+        addPreviewImage(imageData, fileName);
+        
+        // 处理图片
+        await processImage(imageData);
+        
+        // 拍照成功后关闭相机
+        stopCamera();
+        
+    } catch (error) {
+        console.error('拍照处理失败:', error);
+        showError('拍照处理失败，请重试');
+    }
 }
 
 // 切换摄像头
 async function switchCamera() {
     if (!stream) return;
     
-    // 获取当前使用的摄像头
-    const currentTrack = stream.getVideoTracks()[0];
-    const currentFacingMode = currentTrack.getSettings().facingMode;
-    
-    // 停止当前摄像头
-    currentTrack.stop();
-    
     try {
+        // 获取当前使用的摄像头
+        const currentTrack = stream.getVideoTracks()[0];
+        const currentFacingMode = currentTrack.getSettings().facingMode;
+        
+        // 停止当前摄像头
+        currentTrack.stop();
+        
         // 请求新的摄像头
         stream = await navigator.mediaDevices.getUserMedia({
             video: {
-                facingMode: currentFacingMode === 'environment' ? 'user' : 'environment',
+                facingMode: currentFacingMode === 'environment' ? 'user' : { ideal: 'environment' },
                 width: { ideal: 1920 },
                 height: { ideal: 1080 }
             }
         });
         
         videoElement.srcObject = stream;
+        await videoElement.play(); // 确保视频开始播放
+        
     } catch (error) {
         console.error('切换摄像头失败:', error);
-        showError('切换摄像头失败');
+        showError('切换摄像头失败，请重试');
     }
 }
 
@@ -596,7 +650,7 @@ async function validateApiKey() {
     }
 }
 
-// 在页面加载时验证API密钥
+// 在页面加载���验证API密钥
 document.addEventListener('DOMContentLoaded', async () => {
     const isValid = await validateApiKey();
     if (!isValid) {
